@@ -16,6 +16,10 @@ dependencies = [
     "torch==2.9.1",
 ]
 
+[project.scripts]
+refresh-market-data = "market_data_service.cli:main"
+run-training-cycle = "jobs.run_training_cycle:main"
+
 [tool.uv.sources]
 torch = [
     { index = "pytorch-cu128" },

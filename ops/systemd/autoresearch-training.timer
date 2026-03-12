@@ -1,0 +1,11 @@
+[Unit]
+Description=Run autoresearch training cycle every 8 hours
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=8h
+Persistent=true
+Unit=autoresearch-training.service
+
+[Install]
+WantedBy=timers.target

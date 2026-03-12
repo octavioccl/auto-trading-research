@@ -1,0 +1,65 @@
+{
+  "config": {
+    "start_date": null,
+    "end_date": "2026-03-12",
+    "universe": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "QQQ",
+      "SPY"
+    ],
+    "frequency": "1d",
+    "output_path": "/home/octavioccl/github/autoresearch/.cache/market/dataset/market_dataset.parquet",
+    "train_ratio": 0.7,
+    "val_ratio": 0.15
+  },
+  "row_count": 1310,
+  "splits": {
+    "train": 890,
+    "val": 225,
+    "test": 195
+  },
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "QQQ",
+    "SPY"
+  ],
+  "direction_labels": [
+    "short",
+    "no_trade",
+    "long"
+  ],
+  "entry_style_labels": [
+    "breakout",
+    "pullback",
+    "mean_revert",
+    "other"
+  ],
+  "option_type_labels": [
+    "none",
+    "put",
+    "call"
+  ],
+  "dte_bucket_labels": [
+    "none",
+    "7_14",
+    "15_30",
+    "31_45"
+  ],
+  "delta_bucket_labels": [
+    "none",
+    "25_35",
+    "35_50",
+    "50_65"
+  ],
+  "rationale_labels": [
+    "trend_breakout_bull",
+    "trend_breakout_bear",
+    "pullback_reclaim_bull",
+    "mean_revert_bear",
+    "volatility_unclear_no_trade"
+  ]
+}

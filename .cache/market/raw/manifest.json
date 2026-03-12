@@ -1,0 +1,65 @@
+{
+  "cache_dir": "/home/octavioccl/github/autoresearch/.cache/market",
+  "include_news": false,
+  "include_options": false,
+  "mode": "daily-refresh",
+  "provider": "polygon",
+  "requested_end_date": "2026-03-12",
+  "requested_start_date": null,
+  "results": {
+    "AAPL": {
+      "stocks": {
+        "end_date": "2026-03-12",
+        "fetched_rows": 8,
+        "start_date": "2026-03-01",
+        "status": "ok",
+        "written_rows": 297
+      }
+    },
+    "MSFT": {
+      "stocks": {
+        "end_date": "2026-03-12",
+        "fetched_rows": 8,
+        "start_date": "2026-03-01",
+        "status": "ok",
+        "written_rows": 297
+      }
+    },
+    "NVDA": {
+      "stocks": {
+        "end_date": "2026-03-12",
+        "fetched_rows": 8,
+        "start_date": "2026-03-01",
+        "status": "ok",
+        "written_rows": 297
+      }
+    },
+    "QQQ": {
+      "stocks": {
+        "end_date": "2026-03-12",
+        "fetched_rows": 8,
+        "start_date": "2026-03-01",
+        "status": "ok",
+        "written_rows": 297
+      }
+    },
+    "SPY": {
+      "stocks": {
+        "end_date": "2026-03-12",
+        "fetched_rows": 8,
+        "start_date": "2026-03-01",
+        "status": "ok",
+        "written_rows": 297
+      }
+    }
+  },
+  "stock_failures": [],
+  "success": true,
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "SPY",
+    "QQQ"
+  ]
+}

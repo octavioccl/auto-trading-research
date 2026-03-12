@@ -1,0 +1,14 @@
+[Unit]
+Description=Autoresearch market-data refresh and training cycle
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/github/autoresearch
+EnvironmentFile=%h/.config/autoresearch.env
+ExecStart=/usr/bin/env python -m jobs.run_training_cycle --mode daily-refresh
+Nice=10
+
+[Install]
+WantedBy=default.target
