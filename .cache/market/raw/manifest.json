@@ -4,52 +4,52 @@
   "include_options": false,
   "mode": "daily-refresh",
   "provider": "polygon",
-  "requested_end_date": "2026-03-12",
+  "requested_end_date": "2026-03-14",
   "requested_start_date": null,
   "results": {
     "AAPL": {
       "stocks": {
-        "end_date": "2026-03-12",
-        "fetched_rows": 8,
-        "start_date": "2026-03-01",
+        "end_date": "2026-03-14",
+        "fetched_rows": 10,
+        "start_date": "2026-03-02",
         "status": "ok",
-        "written_rows": 297
+        "written_rows": 299
       }
     },
     "MSFT": {
       "stocks": {
-        "end_date": "2026-03-12",
-        "fetched_rows": 8,
-        "start_date": "2026-03-01",
+        "end_date": "2026-03-14",
+        "fetched_rows": 10,
+        "start_date": "2026-03-02",
         "status": "ok",
-        "written_rows": 297
+        "written_rows": 299
       }
     },
     "NVDA": {
       "stocks": {
-        "end_date": "2026-03-12",
-        "fetched_rows": 8,
-        "start_date": "2026-03-01",
+        "end_date": "2026-03-14",
+        "fetched_rows": 10,
+        "start_date": "2026-03-02",
         "status": "ok",
-        "written_rows": 297
+        "written_rows": 299
       }
     },
     "QQQ": {
       "stocks": {
-        "end_date": "2026-03-12",
-        "fetched_rows": 8,
-        "start_date": "2026-03-01",
+        "end_date": "2026-03-14",
+        "fetched_rows": 10,
+        "start_date": "2026-03-02",
         "status": "ok",
-        "written_rows": 297
+        "written_rows": 299
       }
     },
     "SPY": {
       "stocks": {
-        "end_date": "2026-03-12",
-        "fetched_rows": 8,
-        "start_date": "2026-03-01",
+        "end_date": "2026-03-14",
+        "fetched_rows": 10,
+        "start_date": "2026-03-02",
         "status": "ok",
-        "written_rows": 297
+        "written_rows": 299
       }
     }
   },
