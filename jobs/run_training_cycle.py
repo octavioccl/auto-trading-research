@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Refresh market data, rebuild the dataset, and run training."
     )
+    parser.add_argument("--pipeline", choices=["structured", "llm_hybrid"], default="structured")
     parser.add_argument("--provider", default="polygon")
     parser.add_argument("--api-key", default=None)
     parser.add_argument("--symbols", default="AAPL,MSFT,NVDA,SPY,QQQ")
@@ -42,6 +43,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--depth", type=int, default=None)
     parser.add_argument("--dropout", type=float, default=None)
     parser.add_argument("--learning-rate", type=float, default=None)
+    parser.add_argument("--llm-dataset-path", default=None)
+    parser.add_argument("--llm-output-dir", default=None)
+    parser.add_argument("--llm-base-model", default=None)
+    parser.add_argument("--llm-max-seq-length", type=int, default=None)
+    parser.add_argument("--llm-max-train-samples", type=int, default=None)
+    parser.add_argument("--llm-max-eval-samples", type=int, default=None)
     return parser
 
 
@@ -93,6 +100,66 @@ def _run_train(config: MarketDataConfig, dataset_path: Path, args: argparse.Name
     subprocess.run(command, check=True, cwd=REPO_ROOT, env=env)
 
 
+def _run_llm_prepare(config: MarketDataConfig, dataset_path: Path, args: argparse.Namespace) -> Path:
+    output_path = Path(args.llm_dataset_path).resolve() if args.llm_dataset_path else (config.cache_dir / "dataset" / "market_llm_dataset.parquet")
+    command = [
+        sys.executable,
+        "prepare_llm.py",
+        "--market-dataset-path",
+        str(dataset_path),
+        "--output-path",
+        str(output_path),
+    ]
+    if args.start_date:
+        command.extend(["--start-date", args.start_date])
+    if args.end_date:
+        command.extend(["--end-date", args.end_date])
+    env = os.environ.copy()
+    env["MARKET_CACHE_DIR"] = str(config.cache_dir)
+    subprocess.run(command, check=True, cwd=REPO_ROOT, env=env)
+    return output_path
+
+
+def _run_llm_train(config: MarketDataConfig, llm_dataset_path: Path, args: argparse.Namespace) -> None:
+    command = [
+        sys.executable,
+        "train_llm.py",
+        "--dataset-path",
+        str(llm_dataset_path),
+    ]
+    if args.llm_output_dir:
+        command.extend(["--output-dir", args.llm_output_dir])
+    if args.llm_base_model:
+        command.extend(["--base-model", args.llm_base_model])
+    if args.llm_max_seq_length is not None:
+        command.extend(["--max-seq-length", str(args.llm_max_seq_length)])
+    if args.llm_max_train_samples is not None:
+        command.extend(["--max-train-samples", str(args.llm_max_train_samples)])
+    if args.llm_max_eval_samples is not None:
+        command.extend(["--max-eval-samples", str(args.llm_max_eval_samples)])
+    env = os.environ.copy()
+    env["MARKET_CACHE_DIR"] = str(config.cache_dir)
+    subprocess.run(command, check=True, cwd=REPO_ROOT, env=env)
+
+
+def _run_llm_eval(config: MarketDataConfig, llm_dataset_path: Path, args: argparse.Namespace) -> None:
+    command = [
+        sys.executable,
+        "evaluate_llm.py",
+        "--dataset-path",
+        str(llm_dataset_path),
+        "--track",
+        "llm_hybrid",
+    ]
+    if args.llm_output_dir:
+        command.extend(["--adapter-path", args.llm_output_dir])
+    if args.llm_base_model:
+        command.extend(["--base-model", args.llm_base_model])
+    env = os.environ.copy()
+    env["MARKET_CACHE_DIR"] = str(config.cache_dir)
+    subprocess.run(command, check=True, cwd=REPO_ROOT, env=env)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     parser = build_parser()
@@ -105,8 +172,20 @@ def main() -> None:
     LOGGER.info("rebuilding dataset")
     _run_prepare(config, args.prepare_output_path, args.frequency)
 
-    LOGGER.info("running training")
-    _run_train(config, _dataset_path(config, args.prepare_output_path), args)
+    market_dataset_path = _dataset_path(config, args.prepare_output_path)
+    if args.pipeline == "structured":
+        LOGGER.info("running training")
+        _run_train(config, market_dataset_path, args)
+        return
+
+    LOGGER.info("building llm dataset")
+    llm_dataset_path = _run_llm_prepare(config, market_dataset_path, args)
+
+    LOGGER.info("running llm training")
+    _run_llm_train(config, llm_dataset_path, args)
+
+    LOGGER.info("running llm evaluation")
+    _run_llm_eval(config, llm_dataset_path, args)
 
 
 if __name__ == "__main__":

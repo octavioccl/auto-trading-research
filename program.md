@@ -1,6 +1,9 @@
 # autoresearch trading fork
 
-This repository now runs autonomous research for a **swing-trading idea model** instead of generic language-model pretraining.
+This repository now runs autonomous research for a **hybrid swing-trading stack**:
+
+- a structured numeric baseline in `train.py`
+- a QLoRA LLM pipeline in `prepare_llm.py`, `train_llm.py`, and `evaluate_llm.py`
 
 ## Goal
 
@@ -29,7 +32,13 @@ The primary objective is not language loss. The optimization target is:
 - `prepare.py`
   Builds the market dataset, programmatic labels, split metadata, and options-selection helpers.
 - `train.py`
-  Defines the model, multitask losses, training loop, offline evaluation, and prediction artifact export.
+  Defines the structured baseline model, multitask losses, training loop, checkpoint export, and prediction artifact export.
+- `prepare_llm.py`
+  Builds the LLM instruction dataset from market rows plus timestamp-safe text evidence.
+- `train_llm.py`
+  Runs QLoRA supervised fine-tuning for `Qwen/Qwen3.5-9B`.
+- `evaluate_llm.py`
+  Evaluates structured baseline, text-only LLM, and hybrid LLM tracks using the current validation contract.
 - `program.md`
   Defines the autonomous experimentation policy.
 
@@ -72,6 +81,11 @@ The score is derived from:
 
 Prefer simpler changes when scores are close.
 
+For the LLM pipeline, also enforce:
+- JSON parse success >= 99%
+- schema-valid outputs >= 99%
+- no `<think>` tags or non-JSON preambles in accepted outputs
+
 ## Experimentation Rules
 
 - Keep the code runnable on a 24 GB GPU.
@@ -90,6 +104,9 @@ Prefer simpler changes when scores are close.
 - Regularization and batch size
 - Better programmatic labels or risk bands
 - Cleaner rationale templates
+- Better leakage-safe prompt construction
+- Better text-source ranking across news, filings, and transcripts
+- Better hybrid use of baseline numeric context
 
 ## Bad Experiment Areas
 
@@ -97,6 +114,8 @@ Prefer simpler changes when scores are close.
 - Switching to full live execution logic
 - Directly optimizing on test metrics
 - Expanding scope beyond liquid US equities/ETFs for v1
+- Training on Reddit, X, GitHub, or YouTube text in v1
+- Adding chain-of-thought style output to production prompts
 
 ## Output Format
 

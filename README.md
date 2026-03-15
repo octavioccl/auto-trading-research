@@ -4,17 +4,30 @@
 
 *One day, frontier AI research used to be done by meat computers in between eating, sleeping, having other fun, and synchronizing once in a while using sound wave interconnect in the ritual of "group meeting". That era is long gone. Research is now entirely the domain of autonomous swarms of AI agents running across compute cluster megastructures in the skies. The agents claim that we are now in the 10,205th generation of the code base, in any case no one could tell if that's right or wrong as the "code" is now a self-modifying binary that has grown beyond human comprehension. This repo is the story of how it all began. -@karpathy, March 2026*.
 
-The idea: give an AI agent a small but real LLM training setup and let it experiment autonomously overnight. It modifies the code, trains for 5 minutes, checks if the result improved, keeps or discards, and repeats. You wake up in the morning to a log of experiments and (hopefully) a better model. The training code here is a simplified single-GPU implementation of [nanochat](https://github.com/karpathy/nanochat). The core idea is that you're not touching any of the Python files like you normally would as a researcher. Instead, you are programming the `program.md` Markdown files that provide context to the AI agents and set up your autonomous research org. The default `program.md` in this repo is intentionally kept as a bare bones baseline, though it's obvious how one would iterate on it over time to find the "research org code" that achieves the fastest research progress, how you'd add more agents to the mix, etc. A bit more context on this project is here in this [tweet](https://x.com/karpathy/status/2029701092347630069).
+This fork is no longer the original generic GPT pretraining harness. It is now a trading research repo with two paths:
+
+- a structured baseline model in `train.py`
+- a hybrid QLoRA LLM pipeline built around `Qwen/Qwen3.5-9B`
+
+The repo still keeps the “small autonomous research loop” spirit of the original project, but the objective is now time-split trading validation instead of generic language-model loss.
 
 ## How it works
 
-The repo is deliberately kept small and only really has three files that matter:
+The core files now are:
 
-- **`prepare.py`** — fixed constants, one-time data prep (downloads training data, trains a BPE tokenizer), and runtime utilities (dataloader, evaluation). Not modified.
-- **`train.py`** — the single file the agent edits. Contains the full GPT model, optimizer (Muon + AdamW), and training loop. Everything is fair game: architecture, hyperparameters, optimizer, batch size, etc. **This file is edited and iterated on by the agent**.
-- **`program.md`** — baseline instructions for one agent. Point your agent here and let it go. **This file is edited and iterated on by the human**.
+- **`prepare.py`** — builds the structured market dataset from local raw data.
+- **`train.py`** — trains the structured baseline model and exports a checkpoint.
+- **`prepare_llm.py`** — builds the instruction dataset for the LLM pipeline.
+- **`train_llm.py`** — fine-tunes `Qwen/Qwen3.5-9B` with QLoRA.
+- **`evaluate_llm.py`** — evaluates structured baseline, text-only LLM, and hybrid LLM tracks.
+- **`program.md`** — the repo-specific research policy.
 
-By design, training runs for a **fixed 5-minute time budget** (wall clock, excluding startup/compilation), regardless of the details of your compute. The metric is **val_bpb** (validation bits per byte) — lower is better, and vocab-size-independent so architectural changes are fairly compared.
+The primary metric is **`validation_score`**, derived from:
+
+- action precision
+- action recall
+- average trade return
+- Sharpe-like proxy
 
 If you are new to neural networks, this ["Dummy's Guide"](https://x.com/hooeem/status/2030720614752039185) looks pretty good for a lot more context.
 
@@ -30,11 +43,20 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # 2. Install dependencies
 uv sync
 
-# 3. Download data and train tokenizer (one-time, ~2 min)
+# 3. Build the structured market dataset
 uv run prepare.py
 
-# 4. Manually run a single training experiment (~5 min)
+# 4. Train the structured baseline
 uv run train.py
+
+# 5. Build the LLM instruction dataset
+uv run prepare_llm.py
+
+# 6. Fine-tune the LLM
+uv run train_llm.py
+
+# 7. Evaluate the hybrid pipeline
+uv run evaluate_llm.py --track llm_hybrid
 ```
 
 If the above commands all work ok, your setup is working and you can go into autonomous research mode.
@@ -52,17 +74,21 @@ The `program.md` file is essentially a super lightweight "skill".
 ## Project structure
 
 ```
-prepare.py      — constants, data prep + runtime utilities (do not modify)
-train.py        — model, optimizer, training loop (agent modifies this)
-program.md      — agent instructions
-pyproject.toml  — dependencies
+prepare.py        — structured market dataset builder
+train.py          — structured baseline trainer
+prepare_llm.py    — LLM instruction dataset builder
+train_llm.py      — Qwen3.5-9B QLoRA trainer
+evaluate_llm.py   — LLM evaluation
+program.md        — agent instructions
+pyproject.toml    — dependencies
 ```
 
 ## Design choices
 
-- **Single file to modify.** The agent only touches `train.py`. This keeps the scope manageable and diffs reviewable.
-- **Fixed time budget.** Training always runs for exactly 5 minutes, regardless of your specific platform. This means you can expect approx 12 experiments/hour and approx 100 experiments while you sleep. There are two upsides of this design decision. First, this makes experiments directly comparable regardless of what the agent changes (model size, batch size, architecture, etc). Second, this means that autoresearch will find the most optimal model for your platform in that time budget. The downside is that your runs (and results) become not comparable to other people running on other compute platforms.
-- **Self-contained.** No external dependencies beyond PyTorch and a few small packages. No distributed training, no complex configs. One GPU, one file, one metric.
+- **Baseline first.** The structured model remains the reference path and teacher.
+- **Hybrid, not text-only.** The LLM consumes timestamp-safe text plus numeric/baseline context instead of replacing market structure.
+- **Single-GPU target.** The repo targets one RTX 3090 24 GB, so the LLM path uses QLoRA instead of full fine-tuning.
+- **Leakage-safe evaluation.** All comparisons remain time-based and backtest-aware.
 
 ## Platform support
 

@@ -5,20 +5,29 @@ description = "Autonomous pretraining research swarm"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "accelerate>=1.10.1",
+    "bitsandbytes>=0.48.1",
+    "datasets>=4.0.0",
     "kernels>=0.11.7",
     "matplotlib>=3.10.8",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
+    "peft>=0.18.0",
     "pyarrow>=21.0.0",
     "requests>=2.32.0",
     "rustbpe>=0.1.0",
     "tiktoken>=0.11.0",
     "torch==2.9.1",
+    "transformers>=4.57.0",
+    "trl>=0.21.0",
 ]
 
 [project.scripts]
 refresh-market-data = "market_data_service.cli:main"
 run-training-cycle = "jobs.run_training_cycle:main"
+prepare-llm = "prepare_llm:main"
+train-llm = "train_llm:main"
+evaluate-llm = "evaluate_llm:main"
 
 [tool.uv.sources]
 torch = [

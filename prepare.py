@@ -37,8 +37,6 @@ from typing import Dict, Iterable, Iterator, List, Optional
 
 import numpy as np
 import pandas as pd
-import torch
-from torch.utils.data import DataLoader, Dataset
 
 # ---------------------------------------------------------------------------
 # Fixed constants
@@ -605,8 +603,10 @@ def generate_demo_market_data(symbols: Iterable[str], periods: int = 320) -> Non
         pd.DataFrame(option_rows).to_csv(OPTIONS_RAW_DIR / f"{symbol}.csv", index=False)
 
 
-class MarketDataset(Dataset):
+class MarketDataset:
     def __init__(self, dataframe: pd.DataFrame, symbol_to_id: Dict[str, int], stats: Optional[Dict[str, List[float]]] = None):
+        import torch
+
         self.frame = dataframe.reset_index(drop=True)
         feature_dicts = [json.loads(value) for value in self.frame["feature_payload"]]
         self.feature_names = sorted(feature_dicts[0].keys()) if feature_dicts else []
@@ -639,6 +639,8 @@ class MarketDataset(Dataset):
 
 
 def collate_market_batch(batch: List[Dict[str, object]]) -> Dict[str, object]:
+    import torch
+
     rows = [item["row"] for item in batch]
     merged = {
         "features": torch.stack([item["features"] for item in batch]),
@@ -663,6 +665,8 @@ def make_dataloaders(
     batch_size: int = 64,
     num_workers: int = 0,
 ) -> Dict[str, object]:
+    from torch.utils.data import DataLoader
+
     frame = load_market_dataframe(dataset_path)
     symbols = sorted(frame["symbol"].unique())
     symbol_to_id = {symbol: idx for idx, symbol in enumerate(symbols)}

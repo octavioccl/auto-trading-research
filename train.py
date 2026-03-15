@@ -383,6 +383,25 @@ def train() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     predictions_path = out_dir / "latest_predictions.json"
     predictions_path.write_text(json.dumps(val_metrics["predictions"][:100], indent=2))
+    checkpoint_path = out_dir / "latest_structured_model.pt"
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "model_config": {
+                "input_dim": config.input_dim,
+                "num_symbols": config.num_symbols,
+                "hidden_dim": config.hidden_dim,
+                "depth": config.depth,
+                "dropout": config.dropout,
+                "symbol_dim": config.symbol_dim,
+            },
+            "feature_names": feature_names,
+            "symbol_to_id": symbol_to_id,
+            "normalization_stats": loaders["normalization_stats"],
+            "dataset_path": str(DATASET_PATH),
+        },
+        checkpoint_path,
+    )
 
     print("---")
     print(f"dataset_path:             {DATASET_PATH}")
@@ -405,6 +424,7 @@ def train() -> None:
     print(f"test_avg_trade_return:   {test_metrics['backtest']['avg_trade_return']:.4f}")
     print(f"test_sharpe_proxy:       {test_metrics['backtest']['sharpe_proxy']:.4f}")
     print(f"predictions_path:        {predictions_path}")
+    print(f"checkpoint_path:         {checkpoint_path}")
 
 
 if __name__ == "__main__":
