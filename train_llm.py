@@ -12,16 +12,12 @@ from torch.utils.data import Dataset
 
 from llm_trading.common import (
     DEFAULT_QWEN_MODEL_ID,
+    TRADING_SYSTEM_PROMPT,
     default_llm_artifact_dir,
     default_llm_dataset_path,
     ensure_llm_dirs,
     parse_completion_text,
-)
-
-SYSTEM_PROMPT = (
-    "You are a trading research assistant. "
-    "Return only one JSON object with the required keys. "
-    "Do not output chain-of-thought, markdown, or <think> tags."
+    preferred_compute_dtype,
 )
 
 
@@ -47,7 +43,7 @@ class SFTDataset(Dataset):
 
     def _chat_text(self, prompt_text: str, completion_text: str | None = None) -> str:
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": TRADING_SYSTEM_PROMPT},
             {"role": "user", "content": prompt_text},
         ]
         if completion_text is not None:
@@ -59,7 +55,7 @@ class SFTDataset(Dataset):
                 add_generation_prompt=completion_text is None,
             )
         suffix = "" if completion_text is None else completion_text
-        return f"{SYSTEM_PROMPT}\n\n{prompt_text}\n\n{suffix}"
+        return f"{TRADING_SYSTEM_PROMPT}\n\n{prompt_text}\n\n{suffix}"
 
     def _tokenize(self, prompt_text: str, completion_text: str) -> Dict[str, List[int]] | None:
         prompt_only = self._chat_text(prompt_text, None)
@@ -119,12 +115,6 @@ def infer_lora_target_modules(model) -> List[str]:
     return sorted(target_modules)
 
 
-def _dtype():
-    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-        return torch.bfloat16
-    return torch.float16
-
-
 def _load_dataset_records(dataset_path: Path, max_train_samples: int, max_eval_samples: int) -> tuple[List[Dict[str, str]], List[Dict[str, str]], dict[str, Any]]:
     frame = pd.read_parquet(dataset_path)
     train_frame = frame[frame["split"] == "train"].reset_index(drop=True)
@@ -166,7 +156,7 @@ def train_llm(args: argparse.Namespace) -> Dict[str, Any]:
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype=_dtype(),
+        bnb_4bit_compute_dtype=preferred_compute_dtype(),
     )
     model = AutoModelForCausalLM.from_pretrained(
         args.base_model,
@@ -198,8 +188,8 @@ def train_llm(args: argparse.Namespace) -> Dict[str, Any]:
         logging_steps=args.logging_steps,
         save_strategy="epoch",
         eval_strategy="epoch",
-        fp16=_dtype() == torch.float16,
-        bf16=_dtype() == torch.bfloat16,
+        fp16=preferred_compute_dtype() == torch.float16,
+        bf16=preferred_compute_dtype() == torch.bfloat16,
         gradient_checkpointing=True,
         report_to=[],
         remove_unused_columns=False,

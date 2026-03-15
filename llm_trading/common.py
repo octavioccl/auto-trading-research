@@ -23,13 +23,31 @@ from prepare import (
 )
 
 DEFAULT_QWEN_MODEL_ID = "Qwen/Qwen3.5-9B"
+TRADING_SYSTEM_PROMPT = (
+    "You are a trading research assistant. "
+    "Return only one JSON object with the required keys. "
+    "Do not output chain-of-thought, markdown, commentary, or <think> tags."
+)
 DEFAULT_ACTION_THRESHOLD = float(os.environ.get("ACTION_THRESHOLD", "0.55"))
 MAX_EVIDENCE_ITEMS = 3
 MAX_TEXT_CHARS = 900
 BLOCKED_TRAINING_SOURCES = {"reddit", "x", "github", "youtube"}
 ALLOWED_TEXT_SOURCES = {"news", "filings", "transcripts"}
+
+_VALID_DIRECTIONS = frozenset(DIRECTION_LABELS)
+_VALID_ENTRY_STYLES = frozenset(ENTRY_STYLE_LABELS)
+_VALID_OPTION_TYPES = frozenset(OPTION_TYPE_LABELS)
+_VALID_DTE_BUCKETS = frozenset(DTE_BUCKET_LABELS)
+_VALID_DELTA_BUCKETS = frozenset(DELTA_BUCKET_LABELS)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOME_CACHE_DIR = Path(os.path.expanduser("~")) / ".cache" / "autoresearch" / "market"
+
+
+def preferred_compute_dtype():
+    import torch
+    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+        return torch.bfloat16
+    return torch.float16
 
 
 def get_cache_dir() -> Path:
@@ -309,15 +327,15 @@ def validate_completion_payload(payload: Dict[str, Any]) -> Optional[str]:
             return f"missing_{key}"
         if not isinstance(payload[key], expected):
             return f"invalid_type_{key}"
-    if payload["direction"] not in set(DIRECTION_LABELS):
+    if payload["direction"] not in _VALID_DIRECTIONS:
         return "invalid_direction"
-    if payload["entry_style"] not in set(ENTRY_STYLE_LABELS):
+    if payload["entry_style"] not in _VALID_ENTRY_STYLES:
         return "invalid_entry_style"
-    if payload["option_type"] not in set(OPTION_TYPE_LABELS):
+    if payload["option_type"] not in _VALID_OPTION_TYPES:
         return "invalid_option_type"
-    if payload["dte_bucket"] not in set(DTE_BUCKET_LABELS):
+    if payload["dte_bucket"] not in _VALID_DTE_BUCKETS:
         return "invalid_dte_bucket"
-    if payload["delta_bucket"] not in set(DELTA_BUCKET_LABELS):
+    if payload["delta_bucket"] not in _VALID_DELTA_BUCKETS:
         return "invalid_delta_bucket"
     if payload["direction"] == "no_trade" and payload["use_options"]:
         return "no_trade_cannot_use_options"

@@ -10,19 +10,15 @@ import pandas as pd
 
 from llm_trading.common import (
     DEFAULT_QWEN_MODEL_ID,
+    TRADING_SYSTEM_PROMPT,
     build_prompt_text,
     compute_validation_from_predictions,
     default_llm_artifact_dir,
     default_llm_dataset_path,
     normalize_prediction_payload,
     parse_completion_text,
+    preferred_compute_dtype,
     validate_completion_payload,
-)
-
-SYSTEM_PROMPT = (
-    "You are a trading research assistant. "
-    "Return only one JSON object with the required keys. "
-    "Do not output chain-of-thought, markdown, commentary, or <think> tags."
 )
 
 
@@ -68,25 +64,27 @@ def _target_meta(row: pd.Series) -> Dict[str, Any]:
     return payload.get("_meta", {})
 
 
+def _build_prediction_row(row: pd.Series, normalized: Dict[str, Any], meta: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "asof_ts": str(pd.Timestamp(row["asof_ts"]).date()),
+        "symbol": row["symbol"],
+        "predicted_direction": normalized["direction"],
+        "target_direction": meta["target_direction"],
+        "confidence": normalized["confidence"],
+        "entry_style": normalized["entry_style"],
+        "option_type": normalized["option_type"],
+        "options_plan": None,
+        "rationale": normalized.get("rationale", ""),
+        "forward_return_5d": meta["forward_return_5d"],
+    }
+
+
 def _structured_baseline_predictions(frame: pd.DataFrame) -> List[Dict[str, Any]]:
     predictions = []
     for _, row in frame.iterrows():
         baseline = normalize_prediction_payload(json.loads(row["baseline_context_json"]))
         meta = _target_meta(row)
-        predictions.append(
-            {
-                "asof_ts": str(pd.Timestamp(row["asof_ts"]).date()),
-                "symbol": row["symbol"],
-                "predicted_direction": baseline["direction"],
-                "target_direction": meta["target_direction"],
-                "confidence": baseline["confidence"],
-                "entry_style": baseline["entry_style"],
-                "option_type": baseline["option_type"],
-                "options_plan": None,
-                "rationale": baseline.get("rationale", "Structured baseline summary."),
-                "forward_return_5d": meta["forward_return_5d"],
-            }
-        )
+        predictions.append(_build_prediction_row(row, baseline, meta))
     return predictions
 
 
@@ -104,7 +102,7 @@ def _load_generation_model(base_model: str, adapter_path: Path):
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16,
+        bnb_4bit_compute_dtype=preferred_compute_dtype(),
     )
     base = AutoModelForCausalLM.from_pretrained(
         base_model,
@@ -121,13 +119,13 @@ def _generate_completion(model, tokenizer, prompt_text: str, max_new_tokens: int
     import torch
 
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": TRADING_SYSTEM_PROMPT},
         {"role": "user", "content": prompt_text},
     ]
     if hasattr(tokenizer, "apply_chat_template"):
         prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     else:
-        prompt = f"{SYSTEM_PROMPT}\n\n{prompt_text}\n"
+        prompt = f"{TRADING_SYSTEM_PROMPT}\n\n{prompt_text}\n"
     encoded = tokenizer(prompt, return_tensors="pt").to(model.device)
     with torch.no_grad():
         generated = model.generate(
@@ -163,25 +161,13 @@ def _llm_predictions(frame: pd.DataFrame, base_model: str, adapter_path: Path, i
             else:
                 normalized = _fallback_prediction()
         meta = _target_meta(row)
-        predictions.append(
-            {
-                "asof_ts": str(pd.Timestamp(row["asof_ts"]).date()),
-                "symbol": row["symbol"],
-                "predicted_direction": normalized["direction"],
-                "target_direction": meta["target_direction"],
-                "confidence": normalized["confidence"],
-                "entry_style": normalized["entry_style"],
-                "option_type": normalized["option_type"],
-                "options_plan": None,
-                "rationale": normalized["rationale"],
-                "forward_return_5d": meta["forward_return_5d"],
-            }
-        )
+        predictions.append(_build_prediction_row(row, normalized, meta))
     return predictions, parsed, schema_valid
 
 
 def _walk_forward_folds(frame: pd.DataFrame, folds: int) -> List[pd.DataFrame]:
-    unique_times = sorted(pd.to_datetime(frame["asof_ts"]).dt.normalize().unique())
+    normalized_dates = pd.to_datetime(frame["asof_ts"]).dt.normalize()
+    unique_times = sorted(normalized_dates.unique())
     if not unique_times:
         return []
     buckets = np.array_split(unique_times, folds)
@@ -189,7 +175,7 @@ def _walk_forward_folds(frame: pd.DataFrame, folds: int) -> List[pd.DataFrame]:
     for bucket in buckets:
         if len(bucket) == 0:
             continue
-        fold_frames.append(frame[pd.to_datetime(frame["asof_ts"]).dt.normalize().isin(bucket)].reset_index(drop=True))
+        fold_frames.append(frame[normalized_dates.isin(bucket)].reset_index(drop=True))
     return fold_frames
 
 
